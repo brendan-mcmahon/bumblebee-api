@@ -46,6 +46,7 @@ getItemsInAuction = (auctionId, next) => {
         ai.sold,
         i.name,
         i.startingbid,
+        i.photourl,
         ai.currentbidderid as bidderid,
         b.name as biddername
     from auctionitem ai
@@ -68,6 +69,7 @@ getItemInAuction = (auctionId, itemId, next) => {
         ai.sold,
         i.name,
         i.startingbid,
+        i.photourl,
         ai.currentbidderid as bidderid,
         b.name as biddername
     from auctionitem ai
@@ -78,6 +80,8 @@ getItemInAuction = (auctionId, itemId, next) => {
     
     pool.query(queryText, [auctionId, itemId], (err, res) => {
         if (err) throw err;
+        console.log('item in auction')
+        console.log(res.rows[0]);
         next(res.rows[0]);
     });
 }

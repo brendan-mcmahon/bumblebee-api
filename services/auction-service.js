@@ -21,6 +21,18 @@ getAuctionDetails = (auctionId, next) => {
     });
 };
 
+getAuctionDetailsByCode = (auctionCode, next) => {
+    getAuctionIdByCode(auctionCode, (auctionId) => {
+        getAuction(auctionId, (a) => {
+            getItemsInAuction(auctionId, (i) => {
+                getBiddersInAuction(auctionId, (b) => {
+                    next(mapAuctionDetails(a, i, b));
+                });
+            });
+        });
+    });
+};
+
 addItem = (itemId, auctionId, next) => {
     addItemToAuction(itemId, auctionId, (_) => {
         getItemInAuction(auctionId, itemId, (item) => {
@@ -37,14 +49,17 @@ addBidder = (bidderId, auctionId, next) => {
     });
 };
 
-addBidderByAuctionCode = (bidderId, auctionCode, next) => {
+addBidderByAuctionCode = (bidderId, auctionCode, next, error) => {
     getAuctionIdByCode(auctionCode, (auctionId) => {
-        // TODO: handle error if auctionId is not found;
-        addBidderToAuction(bidderId, parseInt(auctionId), (_) => {
-            getBidderInAuction(auctionId, bidderId, (bidder) => {
-                next(mapBidder(bidder));
+        if (!auctionId) {
+            error();
+        } else {
+            addBidderToAuction(bidderId, parseInt(auctionId), (_) => {
+                getBidderInAuction(auctionId, bidderId, (bidder) => {
+                    next(mapBidder(bidder));
+                });
             });
-        });
+        }
     });
 };
 
@@ -53,10 +68,14 @@ bid = (auctionItemId, bidderId, bidAmount, next) => {
 };
 
 sold = (auctionItemId, nextAuctionItemId, next) => {
-    itemSold(auctionItemId, nextAuctionItemId, (previousAuctionItem) => {
-        nextItem(previousAuctionItem.auctionid, nextAuctionItemId, (_) => {
-            next(nextAuctionItemId);
-        });
+    itemSold(auctionItemId, (previousAuctionItem) => {
+        nextItem(
+            previousAuctionItem.auctionid,
+            nextAuctionItemId,
+            (auction) => {
+                getAuctionDetails(auction.id, (a) => next(a));
+            }
+        );
     });
 };
 
@@ -83,10 +102,13 @@ function mapAuctionDetails(auction, items, bidders) {
 }
 
 function mapItem(item) {
+    console.log('mapping item');
+    console.log(item)
     return {
         itemId: item.itemid,
         auctionItemId: item.auctionitemid,
         name: item.name,
+        photoUrl: item.photourl,
         startingBid: item.startingbid,
         currentBid: item.currentbid,
         bidder: {
@@ -105,6 +127,7 @@ function mapBidder(bidder) {
 }
 module.exports = {
     getAuctionDetails,
+    getAuctionDetailsByCode,
     bid,
     sold,
     addItem,

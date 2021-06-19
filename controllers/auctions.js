@@ -1,13 +1,21 @@
 var express = require('express');
 var router = express.Router();
 const { createAuction, removeItemFromAuction, removeBidderFromAuction, deleteAuction } = require("../repositories/auction-repository");
-const { addBidder, addItem, startAuction } = require('../services/auction-service');
+const { addBidder, addItem, startAuction, getAuctionDetails } = require('../services/auction-service');
 
 router.route('').post((req, res) => {
     createAuction(req.body, (i) => res.status(200).json(i));
 });
 
-router.route('/start').post((req, res) => {
+router.route('/:code').get((req, res) => {
+    getAuctionIdByCode(req.params.code, (id) => {
+        getAuctionDetails(id, (a) => {
+            res.status(200).json(a);
+        })
+    })
+})
+
+router.route('/start').put((req, res) => {
     startAuction(req.body.auctionId, a => res.status(200).json(a));
 })
 
@@ -16,7 +24,10 @@ router.route('/:auctionId').delete((req, res) => {
 });
 
 router.route('/item').post((req, res) => {
-    addItem(req.body.itemId, req.body.auctionId, (i) =>  res.status(200).json(i).send());
+    
+    addItem(req.body.itemId, req.body.auctionId, (i) => {
+        res.status(200).json(i).send();
+    });
 });
 
 router.route('/item/:auctionItemId').delete((req, res) => {

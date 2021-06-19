@@ -7,7 +7,14 @@ const {
     editAuctionStatus,
     getAuctionIdByCode,
 } = require("./repositories/auction-repository");
-const { getAuctionDetails, bid, sold, addBidderByAuctionCode, startAuction } = require("./services/auction-service");
+const {
+    getAuctionDetails,
+    bid,
+    sold,
+    addBidderByAuctionCode,
+    startAuction,
+    getAuctionDetailsByCode,
+} = require("./services/auction-service");
 let io = require("socket.io")(http, {
     cors: {
         origin: "*",
@@ -39,29 +46,41 @@ io.on("connection", async (socket) => {
     });
 
     socket.on("join", (req) => {
-        console.log(`${req.name} joining ${req.code}`);
-        if (rooms.filter((r) => r.code === req.code) < 1) {
-            rooms.push({
-                code: req.code,
-                bidders: []
-            });
-        }
-
+        // TODO: check if the name exists first before creating a new one
         createBidder({ name: req.name, online: true }, (b) => {
             addBidderByAuctionCode(b.id, req.code, (b) => {
-                rooms.filter((r) => r.code === req.code)[0].bidders.push(req.name);
                 socket.join(req.code);
-                io.in(req.code).emit('bidder-joined', b);
-                getAuctionIdByCode(req.code, auctionId => {
-                    getAuctionDetails(auctionId, auction => {
-                        socket.emit('auction', auction);
-                    })
-                })
-            })
-        })
+                // io.to(socket.id).emit("bidder-id", {id: b.id});
+                socket.emit("bidder-id", b.bidderId);
+                io.in(req.code).emit("bidder-joined", b);
+                getAuctionIdByCode(req.code, (auctionId) => {
+                    getAuctionDetails(auctionId, (auction) => {
+                        io.in(req.code).emit("auction", auction);
+                    });
+                });
+            });
+        });
     });
 
-    socket.on("hey", () => {
+    socket.on("rejoin", (req) => {
+        socket.join(req.code);
+        socket.emit("bidder-id", req.bidderId);
+        // io.in(req.code).emit("bidder-joined", b);
+        getAuctionIdByCode(req.code, (auctionId) => {
+            getAuctionDetails(auctionId, (auction) => {
+                io.in(req.code).emit("auction", auction);
+            });
+        }, (error) => {
+            socket.emit('auction-not-found');
+        });
+    });
+
+    socket.on("auctioneer-join", (req) => {
+        socket.join(req.code);
+        console.log(`auctioneer joined ${req.code}`);
+    });
+
+    socket.on("auctioneer", () => {
         getAllAuctions((r) => socket.emit("auction-data", r));
     });
 
@@ -72,15 +91,18 @@ io.on("connection", async (socket) => {
     });
 
     socket.on("auction-started", (req) => {
-        startAuction(req.auctionId, auction => {
-            io.in(req.auctionId).emit("auction", auction);
-            io.in(req.auctionId).emit("next-item", auction.items[0].auctionItemId);
+        console.log(`starting auction ${req.code}`);
+        getAuctionDetailsByCode(req.code, (auction) => {
+            io.in(req.code).emit("auction", auction);
         });
     });
 
     socket.on("bid", (req) => {
         bid(req.auctionItemId, req.bidderId, req.amount, (ai) => {
-            socket.emit("new-bid", {
+            getAuctionDetailsByCode(req.code, (auction) => {
+                io.in(req.code).emit("auction", auction);
+            });
+            io.in(req.code).emit("new-bid", {
                 amount: ai.currentbid || 0,
                 bidderId: ai.currentbidderid || null,
             });
@@ -88,15 +110,15 @@ io.on("connection", async (socket) => {
     });
 
     socket.on("sold", (req) => {
-        sold(req.auctionItemId, req.nextAuctionItemId, (nextId) => {
-            socket.in(req.auctionId)("next-item", nextId);
+        sold(req.auctionItemId, req.nextAuctionItemId, (auction) => {
+            io.in(req.code).emit("auction", auction);
         });
     });
 
     socket.on("complete-auction", (req) => {
         editAuctionStatus(req.auctionId, "complete", (_) => {
             getAuctionDetails(req.auctionId, (auction) => {
-                socket.emit("auction", auction);
+                io.in(req.code).emit("auction", auction);
             });
         });
     });

@@ -30,11 +30,11 @@ setCurrentItemIdToFirstItem = (auctionId, next) => {
     const query = `
     update auction set currentauctionitemid = 
         (select id from auctionitem where auctionid = $1 limit 1) 
-    where id = $1;
-`;
+    where id = $1;`;
+    //TODO: validate that there are items first
     pool.query(query, [auctionId], (err, res) => {
         if (err) throw err;
-        next(res.rows[0].id);
+        next();
     });
 }
 
