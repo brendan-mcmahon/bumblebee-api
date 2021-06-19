@@ -110,7 +110,16 @@ io.on("connection", async (socket) => {
     });
 
     socket.on("sold", (req) => {
+        console.log(`sold ${req.auctionItemId}. Next up is ${req.nextAuctionItemId}`);
         sold(req.auctionItemId, req.nextAuctionItemId, (auction) => {
+            io.in(req.code).emit("auction", auction);
+        });
+    });
+
+    
+    socket.on("next", (req) => {
+        console.log(`sending next item out`);
+        getAuctionDetailsByCode(req.code, (auction) => {
             io.in(req.code).emit("auction", auction);
         });
     });

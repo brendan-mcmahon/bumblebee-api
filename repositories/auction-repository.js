@@ -120,18 +120,41 @@ itemSold = (auctionItemId, next) => {
 
     pool.query(query, [auctionItemId], (err, res) => {
         if (err) throw err;
-        next(res.rows[0]);
+        console.log(`updated auction item ${auctionItemId}`);
+        console.log(res.rows[0]);
+        console.log(res.rows[0].auctionid);
+        next(res.rows[0].auctionid);
     });
 }
 
 nextItem = (auctionId, auctionItemId, next) => {
+    console.log(`setting current item to ${auctionItemId} on auction ${auctionId}`)
     const query = `update auction set currentauctionitemid = $2
     where id = $1
     returning *;`;
 
     pool.query(query, [auctionId, auctionItemId], (err, res) => {
         if (err) throw err;
-        next(res.rows[0]);
+        console.log(res.rows[0]);
+        next(res.rows[0].currentauctionitemid);
+    });
+}
+
+getNextItem = (auctionId, next) => {
+    console.log(`selecting id from auctionitem where auctonid =${auctionId}`);
+    const query = `select id from auctionitem
+    where auctionid = $1
+    and sold = false`;
+
+    pool.query(query, [auctionId], (err, res) => {
+        if (err) throw err;
+        if (res.rows[0]) {
+            console.log(`getting next item`);
+            console.log(res.rows[0]);
+            next(res.rows[0].id);
+        } else {
+            next(null);
+        }
     });
 }
 
@@ -165,6 +188,7 @@ module.exports = {
     updateBid,
     itemSold,
     nextItem,
+    getNextItem,
     deleteAuction,
     getAuctionIdByCode,
     setCurrentItemIdToFirstItem

@@ -4,11 +4,12 @@ const {
     getAuction,
     updateBid,
     itemSold,
-    nextItem,
+    getNextItem,
     addItemToAuction,
     addBidderToAuction,
     editAuctionStatus,
     getAuctionIdByCode,
+    nextItem,
 } = require("../repositories/auction-repository");
 
 getAuctionDetails = (auctionId, next) => {
@@ -67,15 +68,21 @@ bid = (auctionItemId, bidderId, bidAmount, next) => {
     updateBid(auctionItemId, bidderId, bidAmount, next);
 };
 
-sold = (auctionItemId, nextAuctionItemId, next) => {
-    itemSold(auctionItemId, (previousAuctionItem) => {
-        nextItem(
-            previousAuctionItem.auctionid,
-            nextAuctionItemId,
-            (auction) => {
-                getAuctionDetails(auction.id, (a) => next(a));
+sold = (auctionItemId, next) => {
+    itemSold(auctionItemId, (auctionId) => {
+        getNextItem(auctionId, (auctionItemId) => {
+            if (!auctionItemId) {
+                console.log('no auctionItemId found, finishing auction');
+                editAuctionStatus(auctionId, 'complete', (_) => {
+                    next(null);
+                });
+            } else {
+                console.log(`found auctionItemId, auction continues: ${auctionItemId}`);
+                nextItem(auctionId, auctionItemId, (nextAuctionItemId) => {
+                    next(nextAuctionItemId);
+                });
             }
-        );
+        });
     });
 };
 
@@ -102,8 +109,6 @@ function mapAuctionDetails(auction, items, bidders) {
 }
 
 function mapItem(item) {
-    console.log('mapping item');
-    console.log(item)
     return {
         itemId: item.itemid,
         auctionItemId: item.auctionitemid,

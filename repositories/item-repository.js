@@ -80,8 +80,6 @@ getItemInAuction = (auctionId, itemId, next) => {
     
     pool.query(queryText, [auctionId, itemId], (err, res) => {
         if (err) throw err;
-        console.log('item in auction')
-        console.log(res.rows[0]);
         next(res.rows[0]);
     });
 }
