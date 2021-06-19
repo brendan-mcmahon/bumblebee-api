@@ -80,6 +80,11 @@ io.on("connection", async (socket) => {
         console.log(`auctioneer joined ${req.code}`);
     });
 
+    socket.on("spectator-join", (req) => {
+        socket.join(req.code);
+        console.log(`spectator joined ${req.code}`);
+    });
+
     socket.on("auctioneer", () => {
         getAllAuctions((r) => socket.emit("auction-data", r));
     });
